@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import fetch from "node-fetch";
+import NodeCache from "node-cache";
 
 const port = process.env.PORT || 8080;
 const app = express();
@@ -10,6 +11,8 @@ app.use(express.json());
 
 const SMHI_API_URL =
   "https://opendata-download-metfcst.smhi.se/api/category/pmp3g/version/2/geotype/point/lon/18.0717/lat/59.3269/data.json";
+
+const myCache = new NodeCache({ stdTTL: 3600 });
 
 let weatherForecast = [];
 
@@ -34,12 +37,18 @@ const getData = async () => {
           element.name === "pcat"
       ),
   }));
+
+  myCache.set("forecast", weatherForecast);
 };
 
-getData();
-
 app.get("/", async (req, res) => {
-  res.send(weatherForecast);
+  if (myCache.has("forecast")) {
+    res.send(myCache.get("forecast"));
+  } else {
+    await getData();
+
+    res.send(weatherForecast);
+  }
 });
 
 // Start the server
